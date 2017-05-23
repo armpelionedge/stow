@@ -274,6 +274,39 @@ func testStore(t testing.TB, store *Store) {
 		t.Errorf("Unexpected name: %v", name)
 	}	
 
+	store.Put([]byte("hello2"), &MyType{"Friend", "another person"})
+
+	var temp MyType
+	var n = 0
+	err = store.IterateIf(func(key []byte, val interface{}) bool {
+		t.Logf("IterateIf() %d found %s %+v\n",n,key,val)
+		n++
+		return false
+	},&temp)
+
+	if err != nil {
+		t.Errorf("Error on IterateIf: %+v\n",err)
+	}
+
+	if n != 1 {
+		t.Errorf("IterateIf failed on iterate once: %d\n",n)
+	}
+
+	n = 0
+	err = store.IterateIf(func(key []byte, val interface{}) bool {
+		t.Logf("IterateIf() %d found %s %+v\n",n,key,val)
+		n++
+		return true
+	},&temp)
+
+	if err != nil {
+		t.Errorf("Error on IterateIf (2): %+v\n",err)
+	}
+
+	if n != 2 {
+		t.Errorf("IterateIf failed to iterate twice: %d\n",n)
+	}
+
 	store.Delete("hello")
 
 	var name4 MyType

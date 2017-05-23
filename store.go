@@ -265,6 +265,34 @@ func (s *Store) ForEach(do interface{}) error {
 	})
 }
 
+// The callback should return true, if we should keep iterating
+type IterateIfCB func(key []byte, b interface{}) bool
+
+func (s *Store) IterateIf(cb IterateIfCB, temp interface{}) error {
+
+	return s.db.View(func(tx *bolt.Tx) error {
+		objects := s.bucket.get(tx)
+		if objects == nil {
+			return nil
+		}
+
+		c := objects.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+//			fmt.Printf("key=%s, value=%s\n", k, v)
+			val_buf := bytes.NewBuffer(nil)
+			val_buf.Write(v)
+			s.unmarshal(val_buf.Bytes(), temp)
+			if !cb(k,temp) {
+				break
+			}
+		}
+		return nil
+	})
+
+}
+
+
 // DeleteAll empties the store
 func (s *Store) DeleteAll() error {
 	return s.db.Update(s.bucket.delete)
