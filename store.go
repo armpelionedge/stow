@@ -131,6 +131,50 @@ func (s *Store) put(key []byte, b interface{}) (err error) {
 	})
 }
 
+type UpdateFuncCB func(b interface{})
+
+func (s *Store) Update(key interface{}, b interface{}, updatecb UpdateFuncCB) error {
+	keyBytes, err := s.toBytes(key)
+	if err != nil {
+		return err
+	}
+	return s.update(keyBytes, b, updatecb)
+}
+
+// Like put, but this calls an update callback which can change the value, which is then 
+// encoded back immediately. b should be a pointer to an appropriate storage type of are updating
+// The value of b is irrelevant, it will be used during the update.
+func (s *Store) update(key []byte, b interface{}, updatecb UpdateFuncCB) (err error) {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		buf := bytes.NewBuffer(nil)
+
+		objects := s.bucket.get(tx)
+		if objects == nil {
+			return ErrNotFound
+		}
+
+		data := objects.Get(key)
+		if data == nil {
+			return ErrNotFound
+		}
+
+		buf.Write(data)
+		err = s.unmarshal(buf.Bytes(), b)
+		if err != nil {
+			return err
+		}
+		updatecb(b)
+
+		var data2 []byte
+		data2, err = s.marshal(b)
+		if err != nil {
+			return err
+		}
+
+		return objects.Put(key, data2)
+	})
+}
+
 // Pull will retrieve b with key "key", and removes it from the store.
 func (s *Store) Pull(key interface{}, b interface{}) error {
 	keyBytes, err := s.toBytes(key)

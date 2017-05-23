@@ -252,6 +252,28 @@ func testStore(t testing.TB, store *Store) {
 		t.Errorf("Should have been NotFound!")
 	}
 
+	err = store.Update([]byte("hello"), &name2, func(val interface{}){
+		if val != nil {
+			ty, ok := val.(*MyType)
+			if ok {
+				ty.LastName = "Vanwilder"			
+			} else {
+				t.Errorf("Bad cast on Update() test")
+			}
+		} else {
+			t.Errorf("Ouch, interface was nil!")
+		}
+	})
+	if err != nil {
+		t.Errorf("Error on Update!")
+	}
+
+	store.Get("hello", &name)
+
+	if name.FirstName != "Friend" || name.LastName != "Vanwilder" {
+		t.Errorf("Unexpected name: %v", name)
+	}	
+
 	store.Delete("hello")
 
 	var name4 MyType
