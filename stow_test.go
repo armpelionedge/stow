@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 	"testing"
-
+	"strings"
 	"github.com/boltdb/bolt"
 )
 
@@ -269,7 +269,6 @@ func testStore(t testing.TB, store *Store) {
 	}
 
 	store.Get("hello", &name)
-
 	if name.FirstName != "Friend" || name.LastName != "Vanwilder" {
 		t.Errorf("Unexpected name: %v", name)
 	}	
@@ -305,6 +304,37 @@ func testStore(t testing.TB, store *Store) {
 
 	if n != 2 {
 		t.Errorf("IterateIf failed to iterate twice: %d\n",n)
+	}
+
+	store.Put([]byte("hello3"), &MyType{"Yet Another", "person"})
+
+	err = store.DeleteIf(func(key []byte, val interface{}) bool {
+		ty, ok := val.(*MyType)
+		if ok {
+			if strings.Compare(ty.LastName,"Vanwilder") == 0 {
+				t.Logf("Should DELETE Vanwilder")
+				return true
+			} else {
+				return false
+			}
+		} else {
+			return false
+		}
+	},&temp)
+
+	n = 0
+	err = store.IterateIf(func(key []byte, val interface{}) bool {
+		ty, ok := val.(*MyType)
+		if ok {
+			if strings.Compare(ty.LastName,"Vanwilder") == 0 {
+				n = 1
+			}
+		}
+		return true
+	},&temp)
+
+	if n != 0 {
+		t.Errorf("Failed to DeleteIf - Vanwilder is still there!")
 	}
 
 	store.Delete("hello")

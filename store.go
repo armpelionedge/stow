@@ -292,6 +292,49 @@ func (s *Store) IterateIf(cb IterateIfCB, temp interface{}) error {
 
 }
 
+// If the callback returns true, the key pair is marked for delete
+// and at the end of the iteration all marked pairs are deleted
+// It does this in two transactions - the transaction which looks 
+// at all store entries, and then a second transaction which deletes 
+// all marked elements
+func (s *Store) DeleteIf(cb IterateIfCB, temp interface{}) (err error) {
+	var keys = make([][]byte, 10)
+
+	err = s.db.View(func(tx *bolt.Tx) error {
+		objects := s.bucket.get(tx)
+		if objects == nil {
+			return nil
+		}
+
+		c := objects.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			val_buf := bytes.NewBuffer(nil)
+			val_buf.Write(v)
+			s.unmarshal(val_buf.Bytes(), temp)
+			if cb(k,temp) {
+				keys = append(keys,k)
+			}
+		}
+		return nil
+	})
+
+	if err == nil {
+		err = s.db.Update(func(tx *bolt.Tx) error {
+			objects := s.bucket.get(tx)
+			if objects == nil {
+				return nil
+			}
+			for _, key := range keys {
+				if key != nil {
+					objects.Delete(key)					
+				}
+			}
+			return nil
+		})
+	}
+	return
+}
 
 // DeleteAll empties the store
 func (s *Store) DeleteAll() error {
