@@ -292,6 +292,30 @@ func (s *Store) IterateIf(cb IterateIfCB, temp interface{}) error {
 
 }
 
+func (s *Store) IterateFromPrefixIf(prefix []byte, cb IterateIfCB, temp interface{}) error {
+
+	return s.db.View(func(tx *bolt.Tx) error {
+		objects := s.bucket.get(tx)
+		if objects == nil {
+			return nil
+		}
+
+		c := objects.Cursor()
+
+		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
+//			fmt.Printf("key=%s, value=%s\n", k, v)
+			val_buf := bytes.NewBuffer(nil)
+			val_buf.Write(v)
+			s.unmarshal(val_buf.Bytes(), temp)
+			if !cb(k,temp) {
+				break
+			}
+		}
+		return nil
+	})
+
+}
+
 // If the callback returns true, the key pair is marked for delete
 // and at the end of the iteration all marked pairs are deleted
 // It does this in two transactions - the transaction which looks 

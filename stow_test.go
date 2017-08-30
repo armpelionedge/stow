@@ -352,7 +352,38 @@ func testStore(t testing.TB, store *Store) {
 	if err := store.Delete("hello"); err != nil {
 		t.Errorf("Delete should have returned nil err %s", err.Error())
 	}
+
+	store.DeleteAll()
+
+	store.Put([]byte("hey:one"), &MyType{"HeyBill", "Smith"})	
+	store.Put([]byte("hey:two"), &MyType{"HeyJoe", "Bloe"})
+	store.Put([]byte("hey:three"), &MyType{"HeyJohn", "Doe"})
+	store.Put([]byte("now:two"), &MyType{"Vivian", "Smithers"})
+
+//	var temp MyType
+	n = 0
+	store.IterateFromPrefixIf([]byte("hey:"),func(key []byte, val interface{}) bool {
+		ty, ok := val.(*MyType)
+		if ok {
+				t.Logf("IterateFromPrefixIf found: %+v\n",ty)
+			if strings.HasPrefix(ty.FirstName,"Hey") {
+				n++
+			} else {
+
+				t.Errorf("IterateFromPrefixIf got an incorrectly prefixed element")
+			}
+		}
+		return true
+	}, &temp)
+
+	if n != 3 {
+		t.Errorf("IterateFromPrefixIf failed to get the right objects.")
+	}
 }
+
+// func TestIterateIfPrefix( t *testing.T, store *Store) {
+
+// }
 
 func TestNestedJSON(t *testing.T) {
 	parent := NewJSONStore(db, []byte("json_parent"))
